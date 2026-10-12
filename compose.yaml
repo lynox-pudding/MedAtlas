@@ -1,0 +1,26 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: medatlas
+      POSTGRES_USER: medatlas
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL','pg_isready -U medatlas']
+      interval: 5s
+      retries: 10
+  api:
+    build: .
+    ports: ['3000:3000']
+    environment:
+      DATABASE_URL: postgresql://medatlas:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/medatlas
+      ADMIN_TOKEN: ${ADMIN_TOKEN:?Set ADMIN_TOKEN}
+      ENABLE_SYNC_WORKER: 'true'
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+    depends_on:
+      postgres:
+        condition: service_healthy
+volumes:
+  pgdata:
