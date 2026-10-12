@@ -1,0 +1,23 @@
+name: Live upstream API verification
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '15 9 * * 1'
+  push:
+    branches: [main]
+    paths:
+      - 'tests/live-smoke.mjs'
+      - '.github/workflows/live-api.yml'
+jobs:
+  upstream-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
+      - name: Test 7 real upstream API endpoints
+        run: node tests/live-smoke.mjs
