@@ -1,5 +1,30 @@
+import {writeFileSync} from 'node:fs';
 import {adapters} from '../dist/adapters/index.js';
 import {dataciteAdapters} from '../dist/datacite.js';
-const query='lung cancer', timeout=18000;
-let errors=0;for(const a of [...adapters,...dataciteAdapters]){const started=Date.now();try{const page=await Promise.race([a.search(a.id==='dailymed'||a.id==='openfda'?'aspirin':query,2,null),new Promise((_,reject)=>setTimeout(()=>reject(Error('Live test timeout')),timeout))]);if(!Array.isArray(page.items)||typeof page.next!=='string'&&page.next!==null)throw Error('Malformed result shape');for(const r of page.items){if(!r.title||!r.url||!r.sourceIds.includes(a.id))throw Error('Malformed record')};if(page.next){const next=await Promise.race([a.search(a.id==='dailymed'||a.id==='openfda'?'aspirin':query,2,page.next),new Promise((_,reject)=>setTimeout(()=>reject(Error('Second page timeout')),timeout))]);if(!Array.isArray(next.items))throw Error('Second page has invalid shape');const before=new Set(page.items.map(x=>x.id));if(next.items.some(x=>before.has(x.id)))throw Error('Second page overlaps first page');console.log(JSON.stringify({source:a.id,pagination:'ok',secondPage:next.items.length,secondCursor:!!next.next}))}console.log(JSON.stringify({source:a.id,status:'ok',hits:page.total,loaded:page.items.length,hasNext:!!page.next,elapsedMs:Date.now()-started}))}catch(e){errors++;console.error(JSON.stringify({source:a.id,status:'error',error:String(e),elapsedMs:Date.now()-started}))}}
-if(errors)process.exitCode=1;
+const sources=[...adapters,...dataciteAdapters],timeoutMs=18000,results=[];
+async function deadline(promise){let timer;try{return await Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Upstream probe deadline exceeded')),timeoutMs)})])}finally{clearTimeout(timer)}}
+for(const adapter of sources){
+ const start=Date.now();
+ const query=adapter.id==='openfda'||adapter.id==='dailymed'?'aspirin':'lung cancer';
+ const entry={source:adapter.id,query,status:'pending',fetchedAt:new Date().toISOString(),durationMs:0,reportedTotal:null,firstPageLoaded:0,secondPageLoaded:null,pagingChecked:false,error:null};
+ try{
+  const page=await deadline(adapter.search(query,2,null));
+  if(!Array.isArray(page.items)||typeof page.next!=='string'&&page.next!==null)throw Error('Unexpected pagination response');
+  for(const row of page.items)if(!row.id||!row.title||!row.url||!row.sourceIds.includes(adapter.id))throw Error('Invalid source provenance');
+  entry.reportedTotal=page.total;entry.firstPageLoaded=page.items.length;
+  if(page.next){
+   const next=await deadline(adapter.search(query,2,page.next));
+   if(!Array.isArray(next.items))throw Error('Second page has invalid shape');
+   const seen=new Set(page.items.map(r=>r.id));
+   if(next.items.some(r=>seen.has(r.id)))throw Error('Second page repeats first-page records');
+   entry.secondPageLoaded=next.items.length;
+   entry.pagingChecked=true;
+  }
+  entry.status='ok';
+ }catch(error){entry.status='error';entry.error=String(error)}
+ entry.durationMs=Date.now()-start;
+ results.push(entry);
+ console.log(JSON.stringify(entry));
+}
+writeFileSync('live-status.json',JSON.stringify({generatedAt:new Date().toISOString(),disclaimer:'Page-level upstream probe only, not an exhaustive database coverage guarantee',results},null,2)+'\n');
+if(results.some(x=>x.status==='error'))process.exitCode=1;
