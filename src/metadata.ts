@@ -9,7 +9,9 @@ export function metadataSnapshot(item:RecordItem){
   registration:item.details?.registration||null,
   status:item.details?.status||null,
   studyType:item.details?.studyType||null,
-  workType:item.details?.workType||null
+  workType:item.details?.workType||null,
+  retractionStatus:item.details?.retractionStatus||null,
+  sourceUpdatedAt:item.details?.updatedAt||null
  }};
 }
 export function snapshotHash(item:RecordItem){return createHash('sha256').update(JSON.stringify(metadataSnapshot(item))).digest('hex')}
