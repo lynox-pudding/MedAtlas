@@ -1,0 +1,7 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {chineseAdapters,chineseDirectory,wanfangPayload,mapWanfang} from '../dist/chinese.js';
+test('Wanfang journal thesis and conference are distinct sources',()=>assert.deepEqual(chineseAdapters.map(x=>x.id),['wanfang-journal','wanfang-thesis','wanfang-conference']));
+test('Wanfang paging starts at zero and resumes from cursor',()=>{assert.equal(wanfangPayload('糖尿病',20,null,'OpenThesis').start,0);assert.equal(wanfangPayload('糖尿病',20,'20','OpenThesis').start,20)});
+test('Wanfang refuses untrusted paging',()=>assert.throws(()=>wanfangPayload('x',20,'-10','OpenThesis')));
+test('Wanfang metadata map retains upstream identifiers and does not invent deep links',()=>{const p=mapWanfang({docs:[{Id:'ABC',Title:'医学论文',DOI:'10.1/a'}],numFound:2},'wanfang-thesis','thesis',0,1);assert.equal(p.items[0].details.upstreamId,'ABC');assert.equal(p.items[0].type,'thesis');assert.equal(p.next,'1')});
+test('Wanfang requires credentials, no unauthenticated scraping',async()=>{const before=process.env.WFDATA_APP_KEY,code=process.env.WFDATA_APP_CODE;delete process.env.WFDATA_APP_KEY;delete process.env.WFDATA_APP_CODE;try{await assert.rejects(chineseAdapters[0].search('test',2,null),/requires authorized API credentials/)}finally{if(before)process.env.WFDATA_APP_KEY=before;if(code)process.env.WFDATA_APP_CODE=code}});
+test('Chinese registry labels sources with access modes',()=>assert.ok(chineseDirectory.some(x=>x.id==='chictr'&&x.mode==='official_entry')));
