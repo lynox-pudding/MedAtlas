@@ -52,6 +52,16 @@ export async function logSearch(q:string,ids:string[],results:SourceResult[]){
   await client.query('COMMIT');
  }catch(e){await client.query('ROLLBACK');throw e}finally{client.release()}
 }
+export async function listRecordChanges(beforeId:number|null,limit:number){
+ if(!pool)throw Error('DATABASE_URL missing');
+ const n=Math.max(1,Math.min(100,limit));
+ const result=await pool.query('SELECT id,source_id,record_id,event_type,old_hash,new_hash,observed_at FROM record_changes WHERE ($1::bigint IS NULL OR id < $1::bigint) ORDER BY id DESC LIMIT $2',[beforeId,n]);
+ return {events:result.rows,next:result.rows.length===n?String(result.rows[result.rows.length-1].id):null};
+}
+export async function latestSourceObservations(){
+ if(!pool)throw Error('DATABASE_URL missing');
+ return (await pool.query('SELECT DISTINCT ON (source_id) source_id,status,reported_total,loaded,retrieved_at,error FROM source_observations ORDER BY source_id,retrieved_at DESC,id DESC')).rows;
+}
 export async function addWatch(q:string,ids:string[],minutes:number){if(!pool)throw Error('DATABASE_URL missing');const id=randomUUID();await pool.query('INSERT INTO watches(id,query_text,source_ids,interval_minutes) VALUES($1,$2,$3,$4)',[id,q,ids,minutes]);return id}
 export async function listWatches(){if(!pool)throw Error('DATABASE_URL missing');return (await pool.query('SELECT * FROM watches ORDER BY next_run_at LIMIT 200')).rows}
 export async function removeWatch(id:string){if(!pool)throw Error('DATABASE_URL missing');return (await pool.query('DELETE FROM watches WHERE id=$1',[id])).rowCount}
