@@ -37,6 +37,8 @@ jobs:
           node-version: '22'
       - run: npm install --no-audit --no-fund
       - run: npm run build
+      - name: Validate record change capture in PostgreSQL
+        run: node tests/db-integration.mjs
       - name: Start API and verify migrations
         run: |
           node dist/server.js > /tmp/medatlas.log 2>&1 &
