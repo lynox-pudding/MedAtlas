@@ -30,7 +30,7 @@ app.get('/api/search/stream',async(req,reply)=>{
  reply.raw.writeHead(200,headers);
  let connected=true;reply.raw.on('close',()=>{connected=false});
  const emit=(value:unknown)=>{if(connected&&!reply.raw.destroyed)reply.raw.write('data: '+JSON.stringify(value)+'\n\n')};
- emit({type:'start',query:q,sources:ids,startedAt:new Date().toISOString()});
+ emit({type:'start',query:q,sources:ids,queryCapabilities:queryCaveats(q,ids),startedAt:new Date().toISOString()});
  const results:SourceResult[]=[];
  await Promise.all(ids.map(async id=>{
   const value=p.strict==='true'&&strictBlocked(q,id)?strictUnavailable(id):await one(id,q,limit,cursors[id]||null,p.refresh==='true');
