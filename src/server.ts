@@ -9,6 +9,37 @@ const auth=(req:any)=>Boolean(process.env.ADMIN_TOKEN)&&req.headers.authorizatio
 app.get('/api/health',async()=>({status:'ok',version:'0.5.0',database:pool?'configured':'disabled',time:new Date().toISOString()}));
 app.get('/api/sources',async()=>({automated:adapters.map(({id,name,kind,description})=>({id,name,kind,description,requiresAuthorization:id.startsWith('wanfang-'),configured:id.startsWith('wanfang-')?Boolean(process.env.WFDATA_APP_KEY&&process.env.WFDATA_APP_CODE):true})),quickLinks,chineseDirectory}));
 app.get('/api/search',async(req,reply)=>{const p=req.query as Record<string,string|undefined>,q=(p.q||'').trim();if(q.length<2||q.length>350)return reply.code(400).send({error:'Query must be 2-350 characters'});const ids=(p.sources||adapters.filter(a=>!a.id.startsWith('wanfang-')||Boolean(process.env.WFDATA_APP_KEY&&process.env.WFDATA_APP_CODE)).map(a=>a.id).join(',')).split(',');if(!ids.length||ids.length>adapters.length||new Set(ids).size!==ids.length||ids.some(id=>!adapters.some(a=>a.id===id)))return reply.code(400).send({error:'Invalid sources'});const n=Math.max(1,Math.min(50,Number(p.limit)||15));let cursors:Record<string,string|null>={};if(p.cursors)try{const raw=JSON.parse(Buffer.from(p.cursors,'base64url').toString('utf8'));if(!raw||typeof raw!=='object'||Array.isArray(raw))throw Error();for(const [k,v]of Object.entries(raw))if(ids.includes(k)&&(v===null||(typeof v==='string'&&v.length<2048)))cursors[k]=v as string|null}catch{return reply.code(400).send({error:'Invalid cursors'})}const results=await Promise.all(ids.map(id=>one(id,q,n,cursors[id]||null,p.refresh==='true')));if(pool)await logSearch(q,ids,results).catch(e=>app.log.error(e));const items=unify(results);return {query:q,queryCapabilities:queryCaveats(q,ids),results,items,uniqueCount:items.length,returnedCount:results.reduce((a,b)=>a+b.loaded,0),generatedAt:new Date().toISOString(),warning:'Only fetched pages are represented; do not add hit totals across overlapping sources.'}});
+app.get('/api/search/stream',async(req,reply)=>{
+ const p=req.query as Record<string,string|undefined>;
+ const q=(p.q||'').trim();
+ if(q.length<2||q.length>350)return reply.code(400).send({error:'Query must be 2-350 characters'});
+ const ids=(p.sources||adapters.filter(a=>!a.id.startsWith('wanfang-')||Boolean(process.env.WFDATA_APP_KEY&&process.env.WFDATA_APP_CODE)).map(a=>a.id).join(',')).split(',');
+ if(!ids.length||ids.length>adapters.length||new Set(ids).size!==ids.length||ids.some(id=>!adapters.some(a=>a.id===id)))return reply.code(400).send({error:'Invalid sources'});
+ const limit=Math.max(1,Math.min(50,Number(p.limit)||15));
+ let cursors:Record<string,string|null>={};
+ if(p.cursors)try{
+  const raw=JSON.parse(Buffer.from(p.cursors,'base64url').toString('utf8'));
+  if(!raw||typeof raw!=='object'||Array.isArray(raw))throw Error();
+  for(const [key,value]of Object.entries(raw))if(ids.includes(key)&&(value===null||(typeof value==='string'&&value.length<2048)))cursors[key]=value as string|null;
+ }catch{return reply.code(400).send({error:'Invalid cursors'})}
+ reply.hijack();
+ const headers:Record<string,string>={'Content-Type':'text/event-stream; charset=utf-8','Cache-Control':'no-cache, no-transform','Connection':'keep-alive','X-Accel-Buffering':'no'};
+ const requestOrigin=req.headers.origin;if(requestOrigin&&origin?.includes(requestOrigin)){headers['Access-Control-Allow-Origin']=requestOrigin;headers['Vary']='Origin'}
+ reply.raw.writeHead(200,headers);
+ let connected=true;reply.raw.on('close',()=>{connected=false});
+ const emit=(value:unknown)=>{if(connected&&!reply.raw.destroyed)reply.raw.write('data: '+JSON.stringify(value)+'\\n\\n')};
+ emit({type:'start',query:q,sources:ids,startedAt:new Date().toISOString()});
+ const results:SourceResult[]=[];
+ await Promise.all(ids.map(async id=>{
+  const value=await one(id,q,limit,cursors[id]||null,p.refresh==='true');
+  results.push(value);
+  emit({type:'source',source:value});
+ }));
+ if(pool)await logSearch(q,ids,results).catch(e=>app.log.error(e));
+ const summary=summarizeSources(results);
+ emit({type:'complete',query:q,summary,uniqueLoaded:unify(results).length,sourceCount:results.length,finishedAt:new Date().toISOString()});
+ if(connected&&!reply.raw.destroyed)reply.raw.end();
+});
 app.get('/api/admin/changes',async(req,reply)=>{
  if(!auth(req))return reply.code(401).send({error:'Unauthorized'});
  const p=req.query as {before?:string;limit?:string},before=p.before===undefined?null:Number(p.before),limit=p.limit===undefined?50:Number(p.limit);
