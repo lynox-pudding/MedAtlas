@@ -22,6 +22,7 @@ console.log('Streaming API returns an explicit authorization-unavailable status 
 const strictResponse=await fetch('http://127.0.0.1:3000/api/search/stream?q=cancer%20AND%20diabetes&sources=crossref&strict=true');
 assert.equal(strictResponse.status,200);
 const strictEvents=(await strictResponse.text()).split('\n\n').filter(Boolean).map(line=>JSON.parse(line.slice(6)));
+assert.ok(strictEvents[0].queryCapabilities.some(c=>c.source==='crossref'&&c.warning),'SSE must disclose query grammar limitations');
 const unsupported=strictEvents.find(e=>e.type==='source');
 assert.equal(unsupported.source.status,'unavailable');
 assert.equal(unsupported.source.total,null);
