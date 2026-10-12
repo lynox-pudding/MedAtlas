@@ -99,7 +99,7 @@ async function search(next=false){
  busy=true;pending=new Set(ids);$('status').hidden=false;
  $('more').hidden=true;renderStatuses();renderResults();
  const button=$('searchForm').querySelector('button');button.disabled=true;button.textContent='Searching…';
- const params=new URLSearchParams({q:query,sources:ids.join(','),limit:'15'});
+ const params=new URLSearchParams({q:query,sources:ids.join(','),limit:'15'});if($('strict').checked)params.set('strict','true');
  if(next)params.set('cursors',encodeCursors(cursors));
  try{await fetchStream(params)}
  catch(err){$('statuses').insertAdjacentHTML('afterbegin','<div class="statusline bad">'+safe(err.message)+'</div>')}
