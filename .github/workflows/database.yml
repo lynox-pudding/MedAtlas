@@ -1,0 +1,50 @@
+name: PostgreSQL integration smoke
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'package.json'
+      - 'tsconfig.json'
+      - '.github/workflows/database.yml'
+  workflow_dispatch:
+jobs:
+  database:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: medatlas
+          POSTGRES_USER: medatlas
+          POSTGRES_PASSWORD: test-only-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U medatlas"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://medatlas:test-only-password@localhost:5432/medatlas
+      HOST: 127.0.0.1
+      PORT: 3000
+      ADMIN_TOKEN: ci-test-only-token
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
+      - name: Start API and verify migrations
+        run: |
+          node dist/server.js > /tmp/medatlas.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl --fail -s http://127.0.0.1:3000/api/health > /tmp/health.json; then break; fi
+            sleep 1
+          done
+          cat /tmp/health.json
+          node -e 'const x=require("/tmp/health.json"); if(x.status!=="ok"||x.database!=="configured") process.exit(1)'
+          node -e 'fetch("http://127.0.0.1:3000/api/admin/watches",{headers:{authorization:"Bearer ci-test-only-token"}}).then(async r=>{if(!r.ok)throw Error(String(r.status));const j=await r.json();if(!Array.isArray(j.watches))throw Error("Missing watches");}).catch(e=>{console.error(e);process.exit(1)})'
+          node -e 'fetch("http://127.0.0.1:3000/api/admin/watches",{method:"POST",headers:{"content-type":"application/json",authorization:"Bearer ci-test-only-token"},body:JSON.stringify({q:"lung cancer",sources:["pubmed"],intervalMinutes:1440})}).then(async r=>{if(r.status!==201)throw Error(await r.text());const j=await r.json();if(!j.id)throw Error("ID missing")}).catch(e=>{console.error(e);process.exit(1)})'
