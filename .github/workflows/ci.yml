@@ -14,3 +14,4 @@ jobs:
       - run: npm run build
       - run: npm test
       - run: node --check public/app.js
+      - run: node scripts/verify-docs.mjs
