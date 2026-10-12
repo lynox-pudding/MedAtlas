@@ -62,11 +62,11 @@ export const chineseAdapters:Adapter[]=[
  wanfangAdapter('wanfang-conference','万方会议论文','article','OpenConference')
 ];
 export const chineseDirectory=[
-{id:'sinomed',name:'SinoMed 中国生物医学文献',category:'Chinese literature',mode:'authorized_api',url:'https://www.sinomed.ac.cn/',searchUrl:null,notes:'官方确认有 REST API，需取得接入授权与接口说明'},
+{id:'sinomed',name:'SinoMed 中国生物医学文献',category:'Chinese literature',mode:'authorized_api',url:'https://www.sinomed.ac.cn/',searchUrl:'https://www.sinomed.ac.cn/zh/subjectSearch.jsp',notes:'官方确认有 REST API，需取得接入授权与接口说明'},
 {id:'wanfang',name:'万方数据',category:'Chinese literature / theses',mode:'authorized_api',url:'https://www.wanfangdata.com.cn/',searchUrl:null,notes:'官方开放接口文档已确认，服务端 AppKey + AppCode'},
 {id:'cnki',name:'中国知网 CNKI',category:'Chinese literature / theses',mode:'official_entry',url:'https://www.cnki.net/',searchUrl:null,notes:'未核实可公开使用的统一检索 API，不能标记为已聚合'},
 {id:'cqvip',name:'维普 VIP',category:'Chinese journals',mode:'official_entry',url:'https://www.cqvip.com/',searchUrl:null,notes:'授权检索能力待核实'},
-{id:'chictr',name:'中国临床试验注册中心 ChiCTR',category:'Clinical trials',mode:'official_entry',url:'https://www.chictr.org.cn/',searchUrl:null,notes:'WHO primary registry，未核实用于聚合的公开实时 API'},
+{id:'chictr',name:'中国临床试验注册中心 ChiCTR',category:'Clinical trials',mode:'official_entry',url:'https://www.chictr.org.cn/',searchUrl:'https://www.chictr.org.cn/searchproj.html',notes:'WHO primary registry，未核实用于聚合的公开实时 API'},
 {id:'nmpa',name:'国家药品监督管理局 NMPA',category:'Drugs / regulations',mode:'official_entry',url:'https://www.nmpa.gov.cn/',searchUrl:null,notes:'官方药品及监管公告入口，结构化检索需另行评估'},
 {id:'nhc',name:'国家卫生健康委员会',category:'Guidelines / public health',mode:'official_entry',url:'https://www.nhc.gov.cn/',searchUrl:null,notes:'卫生政策、医疗卫生和公共卫生信息'},
 {id:'cma',name:'中华医学会',category:'Medical society / guidelines',mode:'official_entry',url:'https://www.cma.org.cn/',searchUrl:null,notes:'学会发布信息与指南入口'},
