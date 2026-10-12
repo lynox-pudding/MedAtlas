@@ -12,20 +12,46 @@ async function queryWanFang(payload:ReturnType<typeof wanfangPayload>){
  const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),12000);
  try{
  const res=await fetch('https://api.wanfangdata.com.cn/openwanfang/getQuery',{method:'POST',signal:ctl.signal,headers:{'Content-Type':'application/json','X-Ca-AppKey':key,Authorization:'APPCODE '+code},body:JSON.stringify(payload)});
+ if(res.status===401||res.status===403)throw new AccessRequired('Wanfang','HTTP '+res.status+'; verify API entitlement and app credentials');
  if(!res.ok)throw Error('Wanfang HTTP '+res.status);
  return await res.json() as any;
  }finally{clearTimeout(timer)}
 }
+function fieldText(value:unknown):string{
+ if(value===null||value===undefined)return '';
+ if(typeof value==='string'||typeof value==='number')return String(value).trim();
+ if(Array.isArray(value))return value.map(fieldText).filter(Boolean).join('; ');
+ if(typeof value==='object'){
+ const o=value as Record<string,unknown>;
+ for(const key of ['value','values','string_value','stringValue','str','text','value_string','raw','v'])if(key in o){const result=fieldText(o[key]);if(result)return result;}
+ }
+ return '';
+}
+function fieldsMap(document:any):Record<string,unknown>{
+ const raw=document?.fields;
+ if(raw&&typeof raw==='object'&&!Array.isArray(raw))return raw;
+ if(Array.isArray(raw)){const mapped:Record<string,unknown>={};for(const part of raw){const key=part?.key??part?.name??part?.field??part?.field_name;if(typeof key==='string')mapped[key]=part.value??part.values??part;}return mapped;}
+ return document??{};
+}
 export function mapWanfang(d:any,source:string,kind:Kind,offset:number,n:number):Page{
- const rows=Array.isArray(d?.docs)?d.docs:Array.isArray(d?.data?.docs)?d.data.docs:Array.isArray(d?.data)?d.data:Array.isArray(d?.result?.docs)?d.result.docs:[];
- const total=Number.isFinite(Number(d?.numFound??d?.data?.numFound??d?.total))?Number(d?.numFound??d?.data?.numFound??d?.total):null;
+ const response=d?.data?.documents?d.data:d;
+ if(!response||!Array.isArray(response.documents)||!Number.isFinite(Number(response.num_found)))throw Error('Wanfang response schema unknown: documents/num_found missing; not a zero-result response');
+ const rows=response.documents as any[],total=Number(response.num_found);
+ if(rows.length===0&&offset<total)throw Error('Wanfang returned no documents despite remaining reported matches');
  const items:RecordItem[]=rows.map((r:any)=>{
- const id=safe(r.Id??r.id??r.ID??r.DocId??r.docId),title=safe(r.Title??r.title??r['标题']);
- if(!id)return null;
- const doi=safe(r.DOI??r.doi)||undefined;
- return {id:source+':'+id,type:kind,title:title||'未提供题名',abstract:safe(r.Abstract??r.abstract??r['摘要'])||undefined,date:safe(r.PublishYear??r.publishYear??r.Year),doi,oa:'unknown' as const,url:'https://www.wanfangdata.com.cn/',sourceIds:[source],sourceLinks:[{source,url:'https://www.wanfangdata.com.cn/'}],retrievedAt:new Date().toISOString(),details:{upstreamId:id,collection:source,originalRecordLink:'Not verified; use official search'}} as RecordItem;
- }).filter(Boolean);
- return {items,total,next:total!==null&&offset+rows.length<total&&rows.length>0?String(offset+rows.length):null,note:'Wanfang licensed metadata. Provider response mapping requires live authorized verification; original record URLs are not synthesized.'};
+ const fields=fieldsMap(r),get=(...keys:string[])=>keys.map(k=>fieldText(fields[k]??r?.[k])).find(Boolean)||'';
+ const id=get('Id','id','ID','DocId','docId'),title=get('Title','SingleTitle','title');
+ if(!id)throw Error('Wanfang record lacks authoritative identifier; refusing silent omission');
+ const doi=get('DOI','doi')||undefined;
+ const candidate=get('ThirdPartyUrl','thirdPartyUrl');const direct=candidate.startsWith('https://')?candidate:(doi&&/^10\.\d{4,9}\//.test(doi)?'https://doi.org/'+doi:'https://www.wanfangdata.com.cn/');
+ return {id:source+':'+id,type:kind,title:title||'未提供题名',abstract:get('Abstract','abstract')||undefined,
+ authors:get('Creator','FirstCreator').split(';').map(x=>x.trim()).filter(Boolean),
+ date:get('PublishDate','PublishYear','Year')||undefined,doi,oa:'unknown',
+ url:direct,sourceIds:[source],sourceLinks:[{source,url:direct}],
+ retrievedAt:new Date().toISOString(),details:{upstreamId:id,collection:source,recordLinkEvidence:direct.includes('doi.org')?'DOI':'Original URL not confirmed'}} as RecordItem;
+ });
+ const next=offset+rows.length<total&&rows.length>0?String(offset+rows.length):null;
+ return {items,total,next,note:'Authorized Wanfang API: num_found is reported hits, not fully fetched records. Source record URL may not be exposed by this endpoint.'};
 }
 export function wanfangAdapter(id:string,name:string,kind:Kind,collection:string):Adapter{
  return {id,name,kind,description:'Wanfang official authorized Open API ('+collection+'); requires WFDATA_APP_KEY and WFDATA_APP_CODE',async search(q,n,c){const payload=wanfangPayload(q,n,c,collection);return mapWanfang(await queryWanFang(payload),id,kind,payload.start,n)}};
