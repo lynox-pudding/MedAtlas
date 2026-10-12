@@ -29,7 +29,7 @@ app.get('/api/search/stream',async(req,reply)=>{
  const requestOrigin=req.headers.origin;if(requestOrigin&&origin?.includes(requestOrigin)){headers['Access-Control-Allow-Origin']=requestOrigin;headers['Vary']='Origin'}
  reply.raw.writeHead(200,headers);
  let connected=true;reply.raw.on('close',()=>{connected=false});
- const emit=(value:unknown)=>{if(connected&&!reply.raw.destroyed)reply.raw.write('data: '+JSON.stringify(value)+'\\n\\n')};
+ const emit=(value:unknown)=>{if(connected&&!reply.raw.destroyed)reply.raw.write('data: '+JSON.stringify(value)+'\n\n')};
  emit({type:'start',query:q,sources:ids,startedAt:new Date().toISOString()});
  const results:SourceResult[]=[];
  await Promise.all(ids.map(async id=>{
