@@ -7,6 +7,7 @@ on:
     branches: [main]
     paths:
       - 'tests/live-smoke.mjs'
+      - 'src/adapters/**'
       - '.github/workflows/live-api.yml'
 jobs:
   upstream-smoke:
