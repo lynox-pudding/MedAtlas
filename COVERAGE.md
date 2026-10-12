@@ -34,3 +34,18 @@ Search requests directly query supported live APIs (apart from short-lived in-me
 - [PostgreSQL integration](https://github.com/lynox-pudding/MedAtlas/actions/workflows/database.yml): migrates schema, starts Fastify, tests persistent watch endpoints.
 
 **Deploy gate:** A passing live smoke test does not prove unlimited pagination, regional accessibility, query equivalence, licensed-source access, or full-text rights.
+
+
+## China: implementation status and official evidence (2026-10-11)
+
+**Automated but credential-gated:** Wanfang (万方数据) publishes an API for literature retrieval using `POST /openwanfang/getQuery`, `X-Ca-AppKey`, and `Authorization: APPCODE <code>`. MedAtlas now includes separate `OpenPeriodicalChi`, `OpenThesis`, and `OpenConference` source adapters. The adapters intentionally fail as **unavailable/authorization-required**, not zero hits, when credentials are absent. Field mapping uses a defensive schema because no licensed response has been tested. Do not mark these as verified until valid credentials, live response mappings, authoritative record URLs, and license scope have been tested.
+
+- Official integration source: https://github.com/wanfangdata/wfdata-open-skills
+- API reference: https://github.com/wanfangdata/wfdata-open-skills/blob/master/skills/wfdata-search/references/api-catalog.md
+- Sample auth code: https://github.com/wanfangdata/wfdata-open-skills/blob/master/skills/wfdata-search/scripts/wf_data_query.py
+
+**Documented REST integration, not yet implemented:** SinoMed documents REST API services for institutions and integrated search: https://www.sinomed.ac.cn/dataService/index.jsp?type=sjfw. Obtain exact technical contract and authorization before building the live adapter.
+
+**Official entry, not aggregated:** CNKI (知网), VIP (维普), ChiCTR (中国临床试验注册中心), NMPA, NHC, Chinese Medical Association, NSTL, 中国科技论文在线. ChiCTR is a WHO-designated primary registry but an unrestricted real-time machine search API for MedAtlas has not been verified. Official WHO registry listing: https://www.who.int/tools/clinical-trials-registry-platform/network/primary-registries/chinese-clinical-trial-registry-%28chictr%29.
+
+**No completeness claims:** China-accessible resources, mainland connectivity, licensing and APIs are different attributes. Static shortcuts cannot be counted as searched databases. For a Chinese-only query, English-dominant providers may have reduced recall without licensed Chinese metadata.
