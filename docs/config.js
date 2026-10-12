@@ -1,0 +1,1 @@
+window.MEDATLAS_API_BASE='';
