@@ -1,11 +1,11 @@
 # MedAtlas
 
-Cross-database biomedical research discovery. One query, six independent live official API connectors; traceable pagination and source-level failures, plus official links for non-aggregated resources.
+Cross-database biomedical research discovery. One query, seven live official API connectors; traceable pagination and source-level failures, plus official links for non-aggregated resources.
 
 ## Status
 
 - Node.js 22 / TypeScript / Fastify REST API
-- Search providers: PubMed, Europe PMC, Crossref, ClinicalTrials.gov, openFDA, DailyMed
+- Search providers: PubMed, Europe PMC, Crossref, ClinicalTrials.gov, openFDA, DailyMed, OpenAlex
 - Source-by-source totals and page cursors; exact DOI / PMID / PMCID deduplication
 - Static frontend under `public/`; can be hosted by GitHub Pages **after Pages is enabled**
 - PostgreSQL search audits, source observations and recurring watch configuration
@@ -41,6 +41,8 @@ Use environment variables on production providers, not secrets committed to GitH
 - `GET /api/sources`: all supported automated and manual sources
 - `GET /api/search?q=lung%20cancer&limit=15&sources=pubmed,europepmc`: live search
 - `GET /api/admin/watches`, `POST /api/admin/watches`, `DELETE /api/admin/watches/:id`: requires `Authorization: Bearer <ADMIN_TOKEN>`
+
+For source capabilities and incomplete coverage, see [COVERAGE.md](COVERAGE.md). The search API includes `queryCapabilities` and warns when Boolean operations may not be preserved by an adapter. Crossref and OpenAlex use cursors for deep pagination.
 
 For pagination, base64url-encode a JSON mapping of source IDs to the individual `next` cursors and pass as `cursors`. Errors must never be interpreted as zero matches.
 
