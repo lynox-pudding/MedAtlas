@@ -1,7 +1,7 @@
 import {createHash} from 'node:crypto';
 import type {RecordItem} from './types.js';
 
-const METADATA_SOURCES=new Set(['pubmed','pubmed-guidelines','europepmc','crossref','clinicaltrials','openfda','dailymed','openalex','openalex-theses']);
+const METADATA_SOURCES=new Set(['pubmed','pubmed-guidelines','europepmc','crossref','clinicaltrials','openfda','dailymed','openalex','openalex-theses','datacite-datasets','datacite-theses']);
 export function maySnapshot(source:string){return METADATA_SOURCES.has(source)}
 export function metadataSnapshot(item:RecordItem){
  return {id:item.id,type:item.type,title:item.title,doi:item.doi||null,pmid:item.pmid||null,pmcid:item.pmcid||null,date:item.date||null,url:item.url,oa:item.oa,
