@@ -82,6 +82,7 @@ async function fetchStream(params){
   stream.onmessage=e=>{
    try{
     const message=JSON.parse(e.data);
+    if(message.type==='start'){capabilities=message.queryCapabilities||[];renderStatuses()}
     if(message.type==='source')updateSource(message.source);
     if(message.type==='complete'){finished=true;stream.close();resolve(message)}
    }catch(err){finished=true;stream.close();reject(err)}
