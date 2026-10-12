@@ -19,5 +19,12 @@ export const adapters:Adapter[]=[
  return {items:rows.map(r=>item('openalex-theses','thesis',r.id||r.doi,r.title,r.primary_location?.landing_page_url||r.doi||r.id,{doi:r.doi?.split('doi.org/').pop(),date:r.publication_date,authors:arr(r.authorships).map(a=>a.author?.display_name).filter(Boolean),oa:r.open_access?.is_oa===true?'yes':'unknown',accessEvidence:r.open_access?.is_oa===true?'OpenAlex OA evidence':undefined,details:{workType:r.type||'dissertation'}})),total,next:rows.length===n&&d.meta?.next_cursor&&d.meta.next_cursor!==cursor?d.meta.next_cursor:null,note:'OpenAlex type:dissertation only. Does not represent all Chinese or worldwide dissertations.'};
  }}
 
+,{id:'pubmed-guidelines',name:'PubMed Clinical Guidelines / 临床指南',kind:'guideline',description:'PubMed publication types: Guideline or Practice Guideline; indexed subset, not a dedicated guideline database.',async search(q,n,c){
+ const base=adapters.find(a=>a.id==='pubmed')!;
+ const nativeQuery='('+q+') AND (Guideline[Publication Type] OR Practice Guideline[Publication Type])';
+ const page=await base.search(nativeQuery,n,c);
+ return {...page,items:page.items.map(r=>({...r,type:'guideline' as Kind,sourceIds:[...r.sourceIds,'pubmed-guidelines'],sourceLinks:[...r.sourceLinks,{source:'pubmed-guidelines',url:r.url}]})),note:'PubMed guideline publication type only; not a complete guideline library.'};
+ }}
+
 ];
 export const quickLinks=[{id:'scholar',name:'Google Scholar',url:'https://scholar.google.com/scholar?q={query}'},{id:'sinemed',name:'SinoMed',url:'https://www.sinomed.ac.cn/'},{id:'cnki',name:'CNKI / 知网',url:'https://www.cnki.net/'},{id:'wanfang',name:'万方',url:'https://www.wanfangdata.com.cn/'},{id:'cochrane',name:'Cochrane Library',url:'https://www.cochranelibrary.com/'},{id:'who',name:'WHO Guidelines',url:'https://www.who.int/publications/guidelines'},{id:'nice',name:'NICE Guidance',url:'https://www.nice.org.uk/guidance'},{id:'chictr',name:'ChiCTR',url:'https://www.chictr.org.cn/'}];
